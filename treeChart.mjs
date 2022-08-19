@@ -4,19 +4,19 @@ import("../../redist/d3.v6.min.js").then(_ =>
 })
 
 
-export function draw(domElId, data) {makeSynchronous(domElId, data)}
+export function init(domElId, data) {makeSynchronous(domElId, data)}
 
 
 function makeSynchronous(domElId, data) {
   if(typeof d3 !== 'undefined') {
-    _draw(domElId, data)
+    draw(domElId, data)
   } else {
-    setTimeout(()=>draw(domElId,data), 100)
+    setTimeout(()=>makeSynchronous(domElId,data), 100)
   }
 }
 
 
-function _draw(domElId, data) {
+function draw(domElId, data) {
 
   const root = d3.hierarchy(data)
   const treeLayout = d3.tree().size([500, 500])(root)   // this sets x and y on each node
