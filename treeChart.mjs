@@ -9,17 +9,16 @@ export function init(domElId, data) {makeSynchronous(domElId, data)}
 
 function makeSynchronous(domElId, data) {
 	if(typeof d3 !== 'undefined') {
-		draw(domElId, data)
+		d3.selectAll("svg > *").remove();	// tabula rasa
+		update(getConfig(domElId, data))
 	} else {
 		setTimeout(()=>makeSynchronous(domElId,data), 100)   // in other words - wait...
 	}
 }
 
 
-function draw(domElId, data) {
-	d3.selectAll("svg > *").remove();
-
-	const cfg = {
+function getConfig(domElId, data) {
+	return {
 		d3: d3,
 		domElId: domElId,
 		root: d3.hierarchy(data),
@@ -27,31 +26,30 @@ function draw(domElId, data) {
 		uniqueId: d => d.name,                    // what uniquely ids a node?
 		calcLayout: d3.tree().size([500, 500])    // this is a fct. this sets x and y on each node. modifies given object.
 	}
-	update(cfg)
 }
 
 
 function update(cfg) {
-
 	cfg.calcLayout(cfg.root)
-
 	groupsCRUD(cfg)
 	linksCRUD(cfg)
-
-	// links
-
 }
 
 function groupsCRUD(cfg)
 {
 	// read
-	const g = cfg.d3.select("#"+cfg.domElId).selectAll("g").data(cfg.root, cfg.uniqueId)
+	const r = cfg.d3.select("#"+cfg.domElId).selectAll("g").data(cfg.root, cfg.uniqueId)
+	// for some reason, root node pos isn't updated - all others are.
+	// seems it's a bug or something, so do it manually as a workaround... :-/
+	// btw: groups don't have x/y only translate, so gotta go through all their children
+	r.selectAll("text").attr("x", d => d.y).attr("y", d => d.x)
+	r.selectAll("circle").attr("cx", d => d.y).attr("cy", d => d.x)
 
 	// create elements (content of a group)
-	const ge = g.enter().append("g");
-	ge.append("circle").attr("cx", d => d.y).attr("cy", d => d.x).attr("style", d => "fill: skyblue").attr("r", 10)
-	ge.append("text").attr("x", d => d.y).attr("y", d => d.x).text(d => {return d.data.name})
-	ge.on("click", (e,d) => {
+	const c = r.enter().append("g");
+	c.append("circle").attr("cx", d => d.y).attr("cy", d => d.x).attr("style", d => "fill: skyblue").attr("r", 10)
+	c.append("text").attr("x", d => d.y).attr("y", d => d.x).text(d => {return d.data.name})
+	c.on("click", (e,d) => {
 		if (d.children) {
 			d._children = d.children; // detach and store
 			d.children = null;
@@ -62,27 +60,24 @@ function groupsCRUD(cfg)
 		update(cfg)
 	})
 
-	// update elements
-	const gu = ge.merge(g)  // get a handle on nodes which stayed
-	//gu.attr("transform", d => "translate(" + d.x + "," + d.y + ")")
-	//gu.call((d) => console.log("GU",d))
+	// update elements (omitted)
 
 	// delete elements
-	g.exit().remove()        // .call((d) => console.log("EXIT",d))  for "debugging"
+	r.exit().remove()
 }
 
 function linksCRUD(cfg) {
 
 	// read
-	const l = d3.select("#"+cfg.domElId).selectAll("path").data(cfg.root.links(), cfg.uniqueId)
+	const r = d3.select("#"+cfg.domElId).selectAll("path").data(cfg.root.links(), cfg.uniqueId)
+	// same workaround as for groups
+	r.attr("d", cfg.linkPathGenerator)
 
 	// create
-	const le = l.enter().append("path").attr("d", cfg.linkPathGenerator)
+	const c = r.enter().append("path").attr("d", cfg.linkPathGenerator)
 
-	// update
-	const lu = le.merge(l)   // update pos of the ones that stayed
-	lu.attr("d", cfg.linkPathGenerator)
+	// update elements (omitted)
 
 	// delete
-	l.exit().remove()
+	r.exit().remove()
 }
